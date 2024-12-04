@@ -1,0 +1,27 @@
++------------------+      +------------------+      +------------------+
+|    Cell          |      |    Grid          |      |    Game          |
++------------------+      +------------------+      +------------------+
+| - is_alive       |      | - cells          |      | - grid           |
+| - x, y           |      | - width, height  |      | - is_running     |
++------------------+      |                  |      | - generation     |
+| + toggle_state() |<---->| + initialize()   |      | + start()        |
+| + get_neighbors()|      | + get_cell()     |      | + pause()        |
++------------------+      | + get_next_state()|     | + step()         |
+                          | + update()       |      | + reset()        |
+                          | + toggle_cell()  |      +------------------+
+                          | + clear()        |
+                          +------------------+
+                                    |
+                                    v
+                           +------------------+
+                           | UserInterface    |
+                           +------------------+
+                           | - game           |
+                           | - width, height  |
+                           +------------------+
+                           | + draw_grid()    |
+                           | + handle_click() |
+                           | + handle_keypress()|
+                           | + update_display()|
+                           | + run()          |
+                           +------------------+

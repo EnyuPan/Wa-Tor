@@ -1,71 +1,60 @@
-from enum import Enum
-
-class CellState(Enum):
-    EMPTY = (0, '_') # tuple consisting of valid representations of each cell state
-    FISH = (1, 'f', 'F')
-    SHARK = (2, 'S', 's')
+from creature import Dir, Creature, Fish, Shark
 
 class Cell:
-    def __init__(self, i: int, j: int, state: CellState):
+    def __init__(self, i: int, j: int, grid, creature: Creature=None):
         self.i = i
         self.j = j
-        self.state = state
+        self.grid = grid
+        self.creature = creature
+    
+    def __repr__(self):
+        return f"Cell({self.i}, {self.j}, {self.creature})"
     
     def __str__(self):
-        return f"({self.i}, {self.j}): {self.state.value[1]}"
-    
-    def get_state(self):
-        return self.state
+        s = f"Cell at ({self.i}, {self.j}): "
+        if self.creature == None:
+            s += "EMPTY"
+        elif isinstance(self.creature, Fish):
+            s += "FISH"
+        elif isinstance(self.creature, Shark):
+            s += "SHARK"
+        return s
 
-    def set_state(self, state: CellState):
-        self.state = state
+    def add_creature(self, creature: Creature):
+        self.creature = creature
+    
+    def remove_creature(self):
+        self.creature = None
+
+    '''
+    Returns list of creatures around self in von Neumann neighborhood (checks for grid boundaries);
+    does not include self
+    '''
+    def get_neighbors(self) -> list[Creature]:
+        neighbors = []
+        cells = self.grid.cells
+        if self.i > 0:
+            neighbors.append(cells[self.i - 1][self.j])
+        if self.i < self.grid.rows - 1:
+            neighbors.append(cells[self.i + 1][self.j])
+        if self.j > 0:
+            neighbors.append(cells[self.i][self.j - 1])
+        if self.j < self.grid.cols - 1:
+            neighbors.append(cells[self.i][self.j + 1])
+        return neighbors
 
 class Grid:
     def __init__(self, rows: int, cols: int):
         self.rows = rows
         self.cols = cols
-        self.cells = [[Cell(i, j, CellState.EMPTY) for j in range(cols)] for i in range(rows)]
+        self.cells = [[Cell(i, j, self, None) for j in range(cols)] for i in range(rows)]
     
-    def __str__(self):
-        s = ""
-        for i in range(self.rows):
-            for j in range(self.cols):
-                if j > 0:
-                    s += " "
-                s += str(self.cells[i][j].state.value[1])
-            s += "\n"
-        s += "rows: " + str(self.rows) + ", cols: " + str(self.cols)
-        return s
-    
-    '''
-    grid.from_list():
-    Accepts lists of integers where each element is 0 (for empty), 1 (for fish), or 2 (for shark),
-    or lists of characters where each element is '_' (for empty), 'f' (for fish), or 's' (for shark)
-    '''
-    def from_list(self, L: list[list[int]]):
-        if len(L) == 0:
-            raise Exception("List cannot be empty")
-        self.rows = len(L)
-        self.cols = len(L[0])
-        self.cells = [[Cell(i, j, CellState.EMPTY) for j in range(self.cols)] for i in range(self.rows)]
-        for i in range(self.rows):
-            for j in range(self.cols):
-                if L[i][j] in CellState.FISH.value:
-                    self.cells[i][j].state = CellState.FISH
-                elif L[i][j] in CellState.SHARK.value:
-                    self.cells[i][j].state = CellState.SHARK
-        return self
+    def get_cell(self, i, j):
+        return self.cells[i][j]
 
-    def get_cellstate(self, i, j):
-        return self.cells[i][j].get_state()
+    def set_cell(self, i, j, creature: Creature):
+        self.cells[i][j].creature = creature
+        return self.cells[i][j]
 
-    def set_cellstate(self, i, j, state: CellState):
-        self.cells[i][j].set_state(state)
-
-
-# grid = Grid(5, 6)
-# print(grid)
-# print(grid.from_list([[0, 0, 1, 1, 1], [2, 0, 1, 2, 1]]))
-# print(grid.get_cellstate(0, 2))
-# grid.set_cellstate(0, 0, CellState.SHARK)
-# print(grid)
+    def get_neighbors(self, i, j):
+        return self.cells[i][j].get_neighbors()
