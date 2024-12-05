@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from enum import Enum
+import random
 
 class Dir(Enum):
     LEFT = (-1, 0)
@@ -20,13 +21,13 @@ class Creature(ABC):
         self.reproduce_timer = 0
 
     @abstractmethod
-    def reproduce(self):
+    def move(self):
         pass
 
     @abstractmethod
-    def move(self, dir: Dir):
+    def reproduce(self):
         pass
-    
+
     @abstractmethod
     def act(self):
         pass
@@ -41,13 +42,25 @@ class Fish(Creature):
     def __repr__(self):
         return f"FISH" # TODO
     
-    def reproduce(self):
-        pass
-        # ???
+    '''
+    fish::move(): move to a random unoccupied neighboring cell
+    '''
+    def move(self):
+        neighbors = self.cell.get_neighbors()
+        free_neighbors = [ne for ne in neighbors if ne.creature == None]
+        if free_neighbors == []:
+            return
+        neighbor = random.choice(free_neighbors)
+        self.cell.remove_creature()
+        neighbor.add_creature(self)
+        self.cell = neighbor
     
-    def move(self, dir: Dir):
-        pass
-        # ???
+    def reproduce(self):
+        old_cell = self.cell
+        self.move()
+        if self.cell != old_cell:
+            old_cell.add_creature(Fish(old_cell))
+        self.reset_reproduce_timer()
     
     def act(self):
         pass
@@ -68,15 +81,16 @@ class Shark(Creature):
         self.energy -= 1
         if self.energy == 0:
             self.die()
+    
+    def move(self):
+        # ???
+        self.dec_energy()
+    
     def reproduce(self):
         pass
         # ???
     
-    def move(self, dir: Dir):
-        # ???
-        self.dec_energy()
-    
     def act(self):
+        # TODO
         pass
-        # ???
 
