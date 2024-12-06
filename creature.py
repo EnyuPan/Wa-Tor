@@ -34,6 +34,7 @@ class Creature(ABC):
     
     def die(self):
         self.cell.remove_creature()
+        self.cell = None
 
 class Fish(Creature):
     def __init__(self, cell, reproduce_threshold=5):
@@ -49,11 +50,11 @@ class Fish(Creature):
         neighbors = self.cell.get_neighbors()
         free_neighbors = [ne for ne in neighbors if ne.creature == None]
         if free_neighbors == []:
-            return
-        neighbor = random.choice(free_neighbors)
+            return # stays in the same cell if no neighboring cells are unoccupied
+        dest = random.choice(free_neighbors)
         self.cell.remove_creature()
-        neighbor.add_creature(self)
-        self.cell = neighbor
+        dest.add_creature(self)
+        self.cell = dest
     
     def reproduce(self):
         old_cell = self.cell
@@ -67,9 +68,10 @@ class Fish(Creature):
         # ???
 
 class Shark(Creature):
-    def __init__(self, cell, reproduce_threshold=5, energy=10):
+    def __init__(self, cell, reproduce_threshold=5, energy=10, eating_energy_boost=4):
         super().__init__(cell, reproduce_threshold)
         self.energy = energy
+        self.eating_energy_boost = eating_energy_boost
     
     def __repr__(self):
         return f"SHARK(energy:{self.energy})"
@@ -77,13 +79,29 @@ class Shark(Creature):
     def inc_energy(self):
         self.energy += 1
     
+    def boost_energy(self): # energy gained from eating a fish
+        self.energy += self.eating_energy_boost
+    
     def dec_energy(self):
         self.energy -= 1
         if self.energy == 0:
             self.die()
     
     def move(self):
-        # ???
+        neighbors = self.cell.get_neighbors()
+        fish_neighbors = [ne for ne in neighbors if isinstance(ne.creature, Fish)]
+        free_neighbors = [ne for ne in neighbors if ne.creature == None]
+        if fish_neighbors == []:
+            if free_neighbors == []:
+                return
+            dest = random.choice(free_neighbors)
+        else:
+            dest = random.choice(fish_neighbors)
+            dest.creature.die()
+            self.boost_energy()
+        self.cell.remove_creature()
+        dest.add_creature(self)
+        self.cell = dest
         self.dec_energy()
     
     def reproduce(self):

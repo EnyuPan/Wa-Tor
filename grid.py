@@ -40,8 +40,8 @@ class Cell:
         self.creature = None
 
     '''
-    Returns list of creatures around self in von Neumann neighborhood (checks for grid boundaries);
-    does not include self
+    Returns list of creatures around self in von Neumann neighborhood (checks for grid boundaries),
+    not including self
     '''
     def get_neighbors(self) -> list[Creature]:
         neighbors = []
