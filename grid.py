@@ -1,4 +1,5 @@
 from creature import Dir, Creature, Fish, Shark
+from typing import Union
 
 class Cell:
     def __init__(self, i: int, j: int, grid, creature: Creature=None):
@@ -20,15 +21,27 @@ class Cell:
             s += "SHARK"
         return s
 
-    def add_creature(self, creature: Creature):
-        self.creature = creature
+    '''
+    add_creature(): accepts either an instance of Creature or a string (one of "Empty", "Fish", or "Shark")
+    '''
+    def add_creature(self, creature: Union[Creature, str]):
+        if creature == None or isinstance(creature, Creature):
+            self.creature = creature
+        elif isinstance(creature, str):
+            creature_str = creature.strip().lower()
+            if creature_str == "empty":
+                self.creature = None
+            elif creature_str == "fish":
+                self.creature = Fish(self)
+            elif creature_str == "shark":
+                self.creature = Shark(self)
     
     def remove_creature(self):
         self.creature = None
 
     '''
-    Returns list of creatures around self in von Neumann neighborhood (checks for grid boundaries);
-    does not include self
+    Returns list of creatures around self in von Neumann neighborhood (checks for grid boundaries),
+    not including self
     '''
     def get_neighbors(self) -> list[Creature]:
         neighbors = []
@@ -49,11 +62,28 @@ class Grid:
         self.cols = cols
         self.cells = [[Cell(i, j, self, None) for j in range(cols)] for i in range(rows)]
     
+    def __str__(self):
+        s = ""
+        for i in range(self.rows):
+            for j in range(self.cols):
+                if j > 0:
+                    s += " "
+                creature = self.cells[i][j].creature
+                if creature == None:
+                    s += "_"
+                elif isinstance(creature, Fish):
+                    s += "f"
+                elif isinstance(creature, Shark):
+                    s += "S"
+            s += "\n"
+        s += f"rows: {self.rows}, cols: {self.cols}"
+        return s
+    
     def get_cell(self, i, j):
         return self.cells[i][j]
 
-    def set_cell(self, i, j, creature: Creature):
-        self.cells[i][j].creature = creature
+    def set_cell(self, i, j, creature: Union[Creature, str]):
+        self.cells[i][j].add_creature(creature)
         return self.cells[i][j]
 
     def get_neighbors(self, i, j):
