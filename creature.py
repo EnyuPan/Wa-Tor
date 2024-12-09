@@ -1,18 +1,12 @@
 from abc import ABC, abstractmethod
-from enum import Enum
 import random
-
-class Dir(Enum):
-    LEFT = (-1, 0)
-    RIGHT = (1, 0)
-    UP = (0, -1)
-    DOWN = (0, 1)
 
 class Creature(ABC):
     def __init__(self, cell, reproduce_threshold=5):
         self.cell = cell
         self.reproduce_timer = 0
         self.reproduce_threshold = reproduce_threshold
+        self.alive = True
     
     def inc_reproduce_timer(self):
         self.reproduce_timer += 1
@@ -23,18 +17,28 @@ class Creature(ABC):
     @abstractmethod
     def move(self):
         pass
-
-    @abstractmethod
+    
     def reproduce(self):
-        pass
+        old_cell = self.cell
+        self.move()
+        if self.alive and self.cell != old_cell:
+            old_cell.add_creature(Fish(old_cell))
+        self.reset_reproduce_timer()
+        print(f"{self} at ({old_cell.i}, {old_cell.j}) reproduced!")
 
-    @abstractmethod
     def act(self):
-        pass
+        if not(self.alive):
+            return
+        if self.reproduce_timer >= self.reproduce_threshold:
+            self.reproduce()
+        else:
+            self.move()
+        self.inc_reproduce_timer()
     
     def die(self):
         self.cell.remove_creature()
         self.cell = None
+        self.alive = False
 
 class Fish(Creature):
     def __init__(self, cell, reproduce_threshold=5):
@@ -55,17 +59,6 @@ class Fish(Creature):
         self.cell.remove_creature()
         dest.add_creature(self)
         self.cell = dest
-    
-    def reproduce(self):
-        old_cell = self.cell
-        self.move()
-        if self.cell != old_cell:
-            old_cell.add_creature(Fish(old_cell))
-        self.reset_reproduce_timer()
-    
-    def act(self):
-        pass
-        # ???
 
 class Shark(Creature):
     def __init__(self, cell, reproduce_threshold=5, energy=10, eating_energy_boost=4):
@@ -97,18 +90,10 @@ class Shark(Creature):
             dest = random.choice(free_neighbors)
         else:
             dest = random.choice(fish_neighbors)
+            print(f"{self} at ({self.cell.i}, {self.cell.j}) ate {dest.creature} at ({dest.i}, {dest.j})!")
             dest.creature.die()
             self.boost_energy()
         self.cell.remove_creature()
         dest.add_creature(self)
         self.cell = dest
         self.dec_energy()
-    
-    def reproduce(self):
-        pass
-        # ???
-    
-    def act(self):
-        # TODO
-        pass
-

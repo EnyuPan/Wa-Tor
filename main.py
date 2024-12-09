@@ -44,3 +44,16 @@ print(f3.cell)
 print(g.get_cell(7, 1))
 g.cells[7][1].creature.move()
 print(g)
+
+print("\nGrid::tick()")
+g2 = grid.Grid(10, 15)
+for i, j in [[4, 2], [6, 1], [8, 1], [7, 0], [8, 0], [9, 5], [4, 13], [1, 13], [4, 12]]:
+    g2.set_cell(i, j, "fish")
+for i, j in [[3, 5], [6, 0], [8, 4], [5, 3], [4, 12]]:
+    g2.set_cell(i, j, "shark")
+print(g2)
+for i in range(10):
+    g2.tick()
+    print(g2)
+g2.reset()
+print(g2)

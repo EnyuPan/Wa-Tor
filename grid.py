@@ -1,4 +1,4 @@
-from creature import Dir, Creature, Fish, Shark
+from creature import Creature, Fish, Shark
 from typing import Union
 
 class Cell:
@@ -57,10 +57,11 @@ class Cell:
         return neighbors
 
 class Grid:
-    def __init__(self, rows: int, cols: int):
+    def __init__(self, rows: int, cols: int, time: int=0):
         self.rows = rows
         self.cols = cols
         self.cells = [[Cell(i, j, self, None) for j in range(cols)] for i in range(rows)]
+        self.time = time
     
     def __str__(self):
         s = ""
@@ -76,7 +77,7 @@ class Grid:
                 elif isinstance(creature, Shark):
                     s += "S"
             s += "\n"
-        s += f"rows: {self.rows}, cols: {self.cols}"
+        s += f"rows: {self.rows}, cols: {self.cols}, time: {self.time}"
         return s
     
     def get_cell(self, i, j):
@@ -88,3 +89,17 @@ class Grid:
 
     def get_neighbors(self, i, j):
         return self.cells[i][j].get_neighbors()
+
+    def tick(self):
+        for i in range(self.rows):
+            for j in range(self.cols):
+                if isinstance(self.cells[i][j].creature, Creature):
+                    self.cells[i][j].creature.act()
+        self.time += 1
+    
+    def reset(self):
+        for i in range(self.rows):
+            for j in range(self.cols):
+                if isinstance(self.cells[i][j].creature, Creature):
+                    self.cells[i][j].creature.die()
+        self.time = 0
