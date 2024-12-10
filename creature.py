@@ -18,13 +18,9 @@ class Creature(ABC):
     def move(self):
         pass
     
+    @abstractmethod
     def reproduce(self):
-        old_cell = self.cell
-        self.move()
-        if self.alive and self.cell != old_cell:
-            old_cell.add_creature(Fish(old_cell))
-        self.reset_reproduce_timer()
-        print(f"{self} at ({old_cell.i}, {old_cell.j}) reproduced!")
+        pass
 
     def act(self):
         if not(self.alive):
@@ -59,9 +55,17 @@ class Fish(Creature):
         self.cell.remove_creature()
         dest.add_creature(self)
         self.cell = dest
+    
+    def reproduce(self):
+        old_cell = self.cell
+        self.move()
+        if self.alive and self.cell != old_cell:
+            old_cell.add_creature(Fish(old_cell))
+        self.reset_reproduce_timer()
+        print(f"{self} at ({old_cell.i}, {old_cell.j}) reproduced!")
 
 class Shark(Creature):
-    def __init__(self, cell, reproduce_threshold=5, energy=10, eating_energy_boost=4):
+    def __init__(self, cell, reproduce_threshold=5, energy=5, eating_energy_boost=2):
         super().__init__(cell, reproduce_threshold)
         self.energy = energy
         self.eating_energy_boost = eating_energy_boost
@@ -96,4 +100,15 @@ class Shark(Creature):
         self.cell.remove_creature()
         dest.add_creature(self)
         self.cell = dest
+    
+    def reproduce(self):
+        old_cell = self.cell
+        self.move()
+        if self.alive and self.cell != old_cell:
+            old_cell.add_creature(Shark(old_cell))
+        self.reset_reproduce_timer()
+        print(f"{self} at ({old_cell.i}, {old_cell.j}) reproduced!")
+    
+    def act(self):
+        super().act()
         self.dec_energy()
