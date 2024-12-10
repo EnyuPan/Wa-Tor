@@ -57,3 +57,26 @@ for i in range(10):
     print(g2)
 g2.reset()
 print(g2)
+
+# Testing harness
+print("Enter testing harness...initializing test grid")
+rows = input("Enter number of rows: ")
+cols = input("Enter number of cols: ")
+grd = grid.Grid(int(rows), int(cols))
+print(grd)
+s = ""
+while s != "q":
+    s = input("Enter command (F: add fish, S: add shark, T: tick, R: reset, Q: quit): ").lower()
+    if s == "f":
+        i = input("row: ")
+        j = input("col: ")
+        grd.set_cell(int(i), int(j), "fish")
+    if s == "s":
+        i = input("row: ")
+        j = input("col: ")
+        grd.set_cell(int(i), int(j), "shark")
+    if s == "r":
+        grd.reset()
+    if s == "t":
+        grd.tick()
+    print(grd)
