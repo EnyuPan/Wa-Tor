@@ -123,3 +123,17 @@ class Grid:
         for f in random.sample(list(self.fishset), len(self.fishset)):
             f.die()
         self.time = 0
+    
+    def populate(self, num_fish: int, num_sharks: int):
+        while num_fish > 0 or num_sharks > 0:
+            if len(self.fishset) + len(self.sharkset) >= self.rows * self.cols:
+                return
+            randcell = random.choice(random.choice(self.cells))
+            while randcell.creature != None:
+                randcell = random.choice(random.choice(self.cells))
+            if num_fish > 0:
+                randcell.add_creature("Fish")
+                num_fish -= 1
+            elif num_sharks > 0:
+                randcell.add_creature("Shark")
+                num_sharks -= 1
