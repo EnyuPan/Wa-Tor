@@ -1,18 +1,22 @@
-import grid
+from game import Game, Commands
 
-grd = grid.Grid(int(input("Enter number of rows: ")), int(input("Enter number of cols: ")))
-print(grd)
+g = Game()
+g.run()
+g.process_input(Commands.INIT_GRID, int(input("Enter number of rows: ")), int(input("Enter number of cols: ")))
+print(g.grid)
 s = ""
-while s != "q":
+while g.running:
     s = input("Enter command (F: add fish, S: add shark, T: tick, R: reset, P: populate, Q: quit): ").lower()
-    if s == "f":
-        grd.set_cell(int(input("row: ")), int(input("col: ")), "fish")
+    if s == "q":
+        g.quit()
+    elif s == "f":
+        g.process_input(Commands.SET_CELL, int(input("row: ")), int(input("col: ")), "fish")
     elif s == "s":
-        grd.set_cell(int(input("row: ")), int(input("col: ")), "shark")
+        g.process_input(Commands.SET_CELL, int(input("row: ")), int(input("col: ")), "shark")
     elif s == "r":
-        grd.reset()
+        g.process_input(Commands.RESET_GRID)
     elif s == "t":
-        grd.tick()
+        g.process_input(Commands.TICK)
     elif s == "p":
-        grd.populate(int(input("number of fish: ")), int(input("number of sharks: ")))
-    print(grd)
+        g.process_input(Commands.POPULATE, int(input("number of fish: ")), int(input("number of sharks: ")))
+    print(g.grid)
