@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from game import Game, Commands
 import pyglet
+import random
 
 class GameInterface(ABC):
     def __init__(self, game: Game=None):
@@ -13,6 +14,10 @@ class GameInterface(ABC):
     '''
     @abstractmethod
     def setup(self):
+        pass
+
+    @abstractmethod
+    def run(self):
         pass
     
     @abstractmethod
@@ -32,6 +37,12 @@ class CommandInterface(GameInterface):
             self.game = Game()
         self.game.run()
         self.game.process_input(Commands.INIT_GRID, int(input("Enter number of rows: ")), int(input("Enter number of cols: ")))
+    
+    def run(self):
+        while self.game.running:
+            if self.game.active:
+                self.update_display()
+            self.handle_input()
     
     def update_display(self):
         print(self.game.grid)
@@ -56,13 +67,41 @@ class CommandInterface(GameInterface):
             self.game.process_input(Commands.POPULATE, int(input("number of fish: ")), int(input("number of sharks: ")))
 
 class GraphicalInterface(GameInterface):
-    def __init__(self, game: Game):
+    def __init__(self, game: Game=None):
         super().__init__(game)
         self.window = pyglet.window.Window()
+        @self.window.event
+        def on_draw():
+            self.window.clear()
+            self.update_display()
+    
+    def setup(self):
+        if self.game == None:
+            self.game = Game()
+        self.game.run()
+        # TEMPORARY ONLY
+        self.game.process_input(Commands.INIT_GRID, 7, 7)
+    
+    def run(self):
+        pyglet.app.run()
     
     def update_display(self):
-        self.window.clear()
-        # TODO...
+        rows = self.game.rows
+        cols = self.game.cols
+        b = pyglet.graphics.Batch()
+        cells = [None] * rows * cols
+        if rows == 0 or cols == 0:
+            return
+        cell_width = self.window.width / rows
+        cell_height = self.window.height / cols
+        for i in range(rows):
+            for j in range(cols):
+                if (i % 2 == 0 and j % 2 == 0) or (i % 2 == 1 and j % 2 == 1):
+                    cell_col = (50, 200, 100)
+                else:
+                    cell_col = (125, 255, 200)
+                cells[i * rows + j] = pyglet.shapes.Rectangle(i * cell_width, j * cell_height, cell_width, cell_height, color=cell_col, batch=b)
+        b.draw()
     
     def handle_input(self):
         pass
