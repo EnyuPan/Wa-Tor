@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 from game import Game, Commands
 import pyglet
-import random
 
 class GameInterface(ABC):
     def __init__(self, game: Game=None):
@@ -67,12 +66,40 @@ class CommandInterface(GameInterface):
             self.game.process_input(Commands.POPULATE, int(input("number of fish: ")), int(input("number of sharks: ")))
 
 class GraphicalInterface(GameInterface):
+    class GridDimensions:
+        def __init__(self, rows: int, cols: int, window_width, window_height):
+            self.margins_h = window_width // 20
+            self.margins_v = window_height // 20
+            self.grid_width = window_width - 2 * self.margins_h # width of the grid in pixels
+            self.grid_height = window_height - 2 * self.margins_v # height of the grid in pixels
+            self.cell_width = self.grid_width / rows
+            self.cell_height = self.grid_height / cols
+    
+    class ColorScheme:
+        def __init__(self, fish_color=(0, 0, 255), shark_color=(255, 0, 0), empty_a_color=(125, 255, 200), empty_b_color=(50, 200, 100)):
+            self.cell_colors = {
+                "fish": (0, 0, 255),
+                "shark": (255, 0, 0),
+                "empty_a": (125, 255, 200),
+                "empty_b": (50, 200, 100)
+            }
+    
     def __init__(self, game: Game=None):
         super().__init__(game)
-        self.window = pyglet.window.Window()
+        self.window = pyglet.window.Window(resizable=True)
+        self.grid_dimensions = self.GridDimensions(self.game.rows, self.game.cols, self.window.width, self.window.height)
+        self.color_scheme = self.ColorScheme()
         @self.window.event
         def on_draw():
             self.window.clear()
+            self.update_display()
+        @self.window.event
+        def on_mouse_press(x, y, button, modifiers):
+            self.handle_mouse_press(x, y, button, modifiers)
+        @self.window.event
+        def on_resize(width, height):
+            # recalculate grid dimensions
+            self.grid_dimensions = self.GridDimensions(self.game.rows, self.game.cols, width, height)
             self.update_display()
     
     def setup(self):
@@ -92,16 +119,36 @@ class GraphicalInterface(GameInterface):
         cells = [None] * rows * cols
         if rows == 0 or cols == 0:
             return
-        cell_width = self.window.width / rows
-        cell_height = self.window.height / cols
         for i in range(rows):
             for j in range(cols):
-                if (i % 2 == 0 and j % 2 == 0) or (i % 2 == 1 and j % 2 == 1):
-                    cell_col = (50, 200, 100)
+                cell_contents = self.game.process_input(Commands.GET_CELL, i, j)
+                if cell_contents == "FISH":
+                    cell_col = self.color_scheme.cell_colors["fish"]
+                elif cell_contents == "SHARK":
+                    cell_col = self.color_scheme.cell_colors["shark"]
+                elif (i % 2 == 0 and j % 2 == 0) or (i % 2 == 1 and j % 2 == 1):
+                    cell_col = self.color_scheme.cell_colors["empty_a"]
                 else:
-                    cell_col = (125, 255, 200)
-                cells[i * rows + j] = pyglet.shapes.Rectangle(i * cell_width, j * cell_height, cell_width, cell_height, color=cell_col, batch=b)
+                    cell_col = self.color_scheme.cell_colors["empty_b"]
+                # coordinates of the top-left corner of the cell; (0, 0) is at the top left corner
+                x = self.grid_dimensions.margins_h + i * self.grid_dimensions.cell_width
+                y = self.grid_dimensions.margins_v + (cols - 1 - j) * self.grid_dimensions.cell_height
+                cells[i * rows + j] = pyglet.shapes.Rectangle(x, y, self.grid_dimensions.cell_width, self.grid_dimensions.cell_height, color=cell_col, batch=b)
         b.draw()
+    
+    def handle_mouse_press(self, x, y, button, modifiers):
+        # coordinates of the cell clicked, with (0, 0) at the top left corner
+        cell_x = int((x - self.grid_dimensions.margins_h) // (self.grid_dimensions.grid_width / self.game.rows))
+        cell_y = self.game.cols - 1 - int((y - self.grid_dimensions.margins_v) // (self.grid_dimensions.grid_height / self.game.cols))
+        if cell_x >= 0 and cell_x < self.game.rows and cell_y >= 0 and cell_y < self.game.cols:
+            print(f"Cell clicked: ({cell_x}, {cell_y})")
+            cell_contents = self.game.process_input(Commands.GET_CELL, cell_x, cell_y)
+            if cell_contents == "FISH":
+                self.game.process_input(Commands.SET_CELL, cell_x, cell_y, "shark")
+            elif cell_contents == "SHARK":
+                self.game.process_input(Commands.SET_CELL, cell_x, cell_y, "empty")
+            elif cell_contents == "EMPTY":
+                self.game.process_input(Commands.SET_CELL, cell_x, cell_y, "fish")
     
     def handle_input(self):
         pass
