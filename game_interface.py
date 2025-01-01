@@ -22,10 +22,6 @@ class GameInterface(ABC):
     @abstractmethod
     def update_display(self):
         pass
-    
-    @abstractmethod
-    def handle_input(self):
-        pass
 
 class CommandInterface(GameInterface):
     def __init__(self, game: Game=None):
@@ -74,6 +70,8 @@ class GraphicalInterface(GameInterface):
             self.grid_height = window_height - 2 * self.margins_v # height of the grid in pixels
             self.cell_width = self.grid_width / rows
             self.cell_height = self.grid_height / cols
+            self.cell_margin_h = self.cell_width // 15
+            self.cell_margin_v = self.cell_height // 15
     
     class ColorScheme:
         def __init__(self, fish_color=(0, 0, 255), shark_color=(255, 0, 0), empty_a_color=(125, 255, 200), empty_b_color=(50, 200, 100)):
@@ -84,9 +82,9 @@ class GraphicalInterface(GameInterface):
                 "empty_b": (50, 200, 100)
             }
     
-    def __init__(self, game: Game=None):
+    def __init__(self, window_height: int=600, window_width: int=600, game: Game=None):
         super().__init__(game)
-        self.window = pyglet.window.Window(resizable=True)
+        self.window = pyglet.window.Window(window_width, window_height, resizable=True)
         self.grid_dimensions = self.GridDimensions(self.game.rows, self.game.cols, self.window.width, self.window.height)
         self.color_scheme = self.ColorScheme()
         @self.window.event
@@ -96,6 +94,9 @@ class GraphicalInterface(GameInterface):
         @self.window.event
         def on_mouse_press(x, y, button, modifiers):
             self.handle_mouse_press(x, y, button, modifiers)
+        @self.window.event
+        def on_key_press(symbol, modifiers):
+            self.handle_key_press(symbol, modifiers)
         @self.window.event
         def on_resize(width, height):
             # recalculate grid dimensions
@@ -131,9 +132,14 @@ class GraphicalInterface(GameInterface):
                 else:
                     cell_col = self.color_scheme.cell_colors["empty_b"]
                 # coordinates of the top-left corner of the cell; (0, 0) is at the top left corner
-                x = self.grid_dimensions.margins_h + i * self.grid_dimensions.cell_width
-                y = self.grid_dimensions.margins_v + (cols - 1 - j) * self.grid_dimensions.cell_height
-                cells[i * rows + j] = pyglet.shapes.Rectangle(x, y, self.grid_dimensions.cell_width, self.grid_dimensions.cell_height, color=cell_col, batch=b)
+                gd = self.grid_dimensions
+                x = gd.margins_h + i * gd.cell_width
+                y = gd.margins_v + (cols - 1 - j) * gd.cell_height
+                cells[i * rows + j] = pyglet.shapes.Rectangle(
+                    x + gd.cell_margin_h, y + gd.cell_margin_v,
+                    gd.cell_width - 2 * gd.cell_margin_h, gd.cell_height - 2 * gd.cell_margin_v,
+                    color=cell_col, batch=b
+                )
         b.draw()
     
     def handle_mouse_press(self, x, y, button, modifiers):
@@ -141,7 +147,6 @@ class GraphicalInterface(GameInterface):
         cell_x = int((x - self.grid_dimensions.margins_h) // (self.grid_dimensions.grid_width / self.game.rows))
         cell_y = self.game.cols - 1 - int((y - self.grid_dimensions.margins_v) // (self.grid_dimensions.grid_height / self.game.cols))
         if cell_x >= 0 and cell_x < self.game.rows and cell_y >= 0 and cell_y < self.game.cols:
-            print(f"Cell clicked: ({cell_x}, {cell_y})")
             cell_contents = self.game.process_input(Commands.GET_CELL, cell_x, cell_y)
             if cell_contents == "FISH":
                 self.game.process_input(Commands.SET_CELL, cell_x, cell_y, "shark")
@@ -150,5 +155,6 @@ class GraphicalInterface(GameInterface):
             elif cell_contents == "EMPTY":
                 self.game.process_input(Commands.SET_CELL, cell_x, cell_y, "fish")
     
-    def handle_input(self):
-        pass
+    def handle_key_press(self, symbol, modifiers):
+        if (symbol == pyglet.window.key.SPACE):
+            self.game.process_input(Commands.TICK)
