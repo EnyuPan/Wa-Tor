@@ -1,5 +1,5 @@
 from typing import Literal
-from grid import Cell, Grid
+from grid import Grid
 import creature
 from enum import Enum
 

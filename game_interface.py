@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from game import Game, Commands
 import pyglet
+from enum import Enum
+from typing import Union
 
 class GameInterface(ABC):
     def __init__(self, game: Game=None):
@@ -76,30 +78,165 @@ class GraphicalInterface(GameInterface):
     class ColorScheme:
         def __init__(self, fish_color=(0, 0, 255), shark_color=(255, 0, 0), empty_a_color=(125, 255, 200), empty_b_color=(50, 200, 100)):
             self.cell_colors = {
-                "fish": (0, 0, 255),
-                "shark": (255, 0, 0),
-                "empty_a": (125, 255, 200),
-                "empty_b": (50, 200, 100)
+                "fish": fish_color,
+                "shark": shark_color,
+                "empty_a": empty_a_color,
+                "empty_b": empty_b_color
             }
     
+    class ScreenTransition(Enum):
+        START = 0 # transition from select dimensions screen to running screen
+        PAUSE = 1 # transition from running screen to paused screen
+        UNPAUSE = 2 # transition from paused screen to running screen
+    
+    class Screen(ABC): # represents a game state; owned by instances of GraphicalInterface
+        def __init__(self, gi: 'GraphicalInterface'):
+            # gi is a reference to the GraphicalInterface instance that owns this screen
+            self.gi = gi
+        
+        @abstractmethod
+        def transition(self, transition: 'GraphicalInterface.ScreenTransition') -> Union['GraphicalInterface.Screen', None]:
+            pass
+        @abstractmethod
+        def handle_mouse_press(self, x, y, button, modifiers):
+            pass
+        @abstractmethod
+        def handle_key_press(self, symbol, modifiers):
+            pass
+        @abstractmethod
+        def handle_text(self, text):
+            pass
+        @abstractmethod
+        def update(self):
+            pass
+    
+    class SelectDimensionsScreen(Screen):
+        def __init__(self, gi: 'GraphicalInterface'):
+            super().__init__(gi)
+        
+        def transition(self, transition: 'GraphicalInterface.ScreenTransition') -> Union['GraphicalInterface.Screen', None]:
+            if transition == GraphicalInterface.ScreenTransition.RUN:
+                return GraphicalInterface.RunningScreen(self.game)
+        
+        def handle_mouse_press(self, x, y, button, modifiers):
+            pass
+        def handle_key_press(self, symbol, modifiers):
+            pass
+        def handle_text(self, text):
+            pass
+        def update(self):
+            pass
+    
+    class RunningScreen(Screen):
+        def __init__(self, gi: 'GraphicalInterface'):
+            super().__init__(gi)
+        
+        def transition(self, transition: 'GraphicalInterface.ScreenTransition') -> Union['GraphicalInterface.Screen', None]:
+            if transition == GraphicalInterface.ScreenTransition.PAUSE:
+                return GraphicalInterface.PausedScreen(self.game)
+        
+        def handle_mouse_press(self, x, y, button, modifiers):
+            # coordinates of the cell clicked, with (0, 0) at the top left corner
+            cell_x = int((x - self.gi.grid_dimensions.margins_h) // (self.gi.grid_dimensions.grid_width / self.gi.game.rows))
+            cell_y = self.gi.game.cols - 1 - int((y - self.gi.grid_dimensions.margins_v) // (self.gi.grid_dimensions.grid_height / self.gi.game.cols))
+            if cell_x >= 0 and cell_x < self.gi.game.rows and cell_y >= 0 and cell_y < self.gi.game.cols:
+                cell_contents = self.gi.game.process_input(Commands.GET_CELL, cell_x, cell_y)
+                if cell_contents == "FISH":
+                    self.gi.game.process_input(Commands.SET_CELL, cell_x, cell_y, "shark")
+                elif cell_contents == "SHARK":
+                    self.gi.game.process_input(Commands.SET_CELL, cell_x, cell_y, "empty")
+                elif cell_contents == "EMPTY":
+                    self.gi.game.process_input(Commands.SET_CELL, cell_x, cell_y, "fish")
+        
+        def handle_key_press(self, symbol, modifiers):
+            if (symbol == pyglet.window.key.SPACE):
+                self.gi.game.process_input(Commands.TICK)
+        
+        def handle_text(self, text):
+            pass
+
+        def update(self):
+            rows = self.gi.game.rows
+            cols = self.gi.game.cols
+            b = pyglet.graphics.Batch()
+            cells = [None] * rows * cols
+            if rows == 0 or cols == 0:
+                return
+            for i in range(rows):
+                for j in range(cols):
+                    cell_contents = self.gi.game.process_input(Commands.GET_CELL, i, j)
+                    if cell_contents == "FISH":
+                        cell_col = self.gi.color_scheme.cell_colors["fish"]
+                    elif cell_contents == "SHARK":
+                        cell_col = self.gi.color_scheme.cell_colors["shark"]
+                    elif (i % 2 == 0 and j % 2 == 0) or (i % 2 == 1 and j % 2 == 1):
+                        cell_col = self.gi.color_scheme.cell_colors["empty_a"]
+                    else:
+                        cell_col = self.gi.color_scheme.cell_colors["empty_b"]
+                    # coordinates of the top-left corner of the cell; (0, 0) is at the top left corner
+                    gd = self.gi.grid_dimensions
+                    x = gd.margins_h + i * gd.cell_width
+                    y = gd.margins_v + (cols - 1 - j) * gd.cell_height
+                    cells[i * rows + j] = pyglet.shapes.Rectangle(
+                        x + gd.cell_margin_h, y + gd.cell_margin_v,
+                        gd.cell_width - 2 * gd.cell_margin_h, gd.cell_height - 2 * gd.cell_margin_v,
+                        color=cell_col, batch=b
+                    )
+            b.draw()
+    
+    class PausedScreen(Screen):
+        def __init__(self, gi: 'GraphicalInterface'):
+            super().__init__(gi)
+        
+        def transition(self, transition: 'GraphicalInterface.ScreenTransition') -> Union['GraphicalInterface.Screen', None]:
+            if transition == GraphicalInterface.ScreenTransition.UNPAUSE:
+                return GraphicalInterface.RunningScreen(self.game)
+        
+        def handle_mouse_press(self, x, y, button, modifiers):
+            pass
+        def handle_key_press(self, symbol, modifiers):
+            pass
+        def handle_text(self, text):
+            pass
+        def update(self):
+            pass
+    
+    # GraphicalInterface methods
     def __init__(self, window_height: int=600, window_width: int=600, game: Game=None):
         super().__init__(game)
-        self.window = pyglet.window.Window(window_width, window_height, resizable=True)
+        self.window = pyglet.window.Window(window_width, window_height, "Wa-Tor", resizable=True)
+        
+        # set up miscellaneous data classes
         self.grid_dimensions = self.GridDimensions(self.game.rows, self.game.cols, self.window.width, self.window.height)
         self.color_scheme = self.ColorScheme()
+
+        # set up screens
+        self.select_dimensions_screen = GraphicalInterface.SelectDimensionsScreen(self)
+        self.running_screen = GraphicalInterface.RunningScreen(self)
+        self.paused_screen = GraphicalInterface.PausedScreen(self)
+
+        # start on the select dimensions screen by default
+        self.current_screen = self.running_screen # TEMPORARY ONLY
+
         @self.window.event
         def on_draw():
             self.window.clear()
             self.update_display()
         @self.window.event
         def on_mouse_press(x, y, button, modifiers):
-            self.handle_mouse_press(x, y, button, modifiers)
+            self.current_screen.handle_mouse_press(x, y, button, modifiers)
+            self.update_display()
         @self.window.event
         def on_key_press(symbol, modifiers):
-            self.handle_key_press(symbol, modifiers)
+            self.current_screen.handle_key_press(symbol, modifiers)
+            self.update_display()
+        @self.window.event
+        def on_text(text):
+            self.current_screen.handle_text(text)
+            self.update_display()
         @self.window.event
         def on_resize(width, height):
-            # recalculate grid dimensions
+            # recalculate grid dimensions based on new window size
             self.grid_dimensions = self.GridDimensions(self.game.rows, self.game.cols, width, height)
             self.update_display()
     
@@ -108,53 +245,12 @@ class GraphicalInterface(GameInterface):
             self.game = Game()
         self.game.run()
         # TEMPORARY ONLY
-        self.game.process_input(Commands.INIT_GRID, 7, 7)
+        self.game.process_input(Commands.INIT_GRID, 3, 6)
     
     def run(self):
+        self.window.push_handlers(self)
         pyglet.app.run()
     
     def update_display(self):
-        rows = self.game.rows
-        cols = self.game.cols
-        b = pyglet.graphics.Batch()
-        cells = [None] * rows * cols
-        if rows == 0 or cols == 0:
-            return
-        for i in range(rows):
-            for j in range(cols):
-                cell_contents = self.game.process_input(Commands.GET_CELL, i, j)
-                if cell_contents == "FISH":
-                    cell_col = self.color_scheme.cell_colors["fish"]
-                elif cell_contents == "SHARK":
-                    cell_col = self.color_scheme.cell_colors["shark"]
-                elif (i % 2 == 0 and j % 2 == 0) or (i % 2 == 1 and j % 2 == 1):
-                    cell_col = self.color_scheme.cell_colors["empty_a"]
-                else:
-                    cell_col = self.color_scheme.cell_colors["empty_b"]
-                # coordinates of the top-left corner of the cell; (0, 0) is at the top left corner
-                gd = self.grid_dimensions
-                x = gd.margins_h + i * gd.cell_width
-                y = gd.margins_v + (cols - 1 - j) * gd.cell_height
-                cells[i * rows + j] = pyglet.shapes.Rectangle(
-                    x + gd.cell_margin_h, y + gd.cell_margin_v,
-                    gd.cell_width - 2 * gd.cell_margin_h, gd.cell_height - 2 * gd.cell_margin_v,
-                    color=cell_col, batch=b
-                )
-        b.draw()
-    
-    def handle_mouse_press(self, x, y, button, modifiers):
-        # coordinates of the cell clicked, with (0, 0) at the top left corner
-        cell_x = int((x - self.grid_dimensions.margins_h) // (self.grid_dimensions.grid_width / self.game.rows))
-        cell_y = self.game.cols - 1 - int((y - self.grid_dimensions.margins_v) // (self.grid_dimensions.grid_height / self.game.cols))
-        if cell_x >= 0 and cell_x < self.game.rows and cell_y >= 0 and cell_y < self.game.cols:
-            cell_contents = self.game.process_input(Commands.GET_CELL, cell_x, cell_y)
-            if cell_contents == "FISH":
-                self.game.process_input(Commands.SET_CELL, cell_x, cell_y, "shark")
-            elif cell_contents == "SHARK":
-                self.game.process_input(Commands.SET_CELL, cell_x, cell_y, "empty")
-            elif cell_contents == "EMPTY":
-                self.game.process_input(Commands.SET_CELL, cell_x, cell_y, "fish")
-    
-    def handle_key_press(self, symbol, modifiers):
-        if (symbol == pyglet.window.key.SPACE):
-            self.game.process_input(Commands.TICK)
+        self.window.clear()
+        self.current_screen.update()

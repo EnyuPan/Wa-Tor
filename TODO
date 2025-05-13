@@ -1,3 +1,0 @@
-Implement game-set defaults for breed time, shark energy, etc.
-Make the coordinates wrap around (torodial)
-Add "toggle verbose" for command-line interface
