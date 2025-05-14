@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from game import Game, Commands
 import pyglet
 from enum import Enum
-from typing import Union
+from typing import Union, Callable
 
 class GameInterface(ABC):
     def __init__(self, game: Game=None):
@@ -64,6 +64,7 @@ class CommandInterface(GameInterface):
             self.game.process_input(Commands.POPULATE, int(input("number of fish: ")), int(input("number of sharks: ")))
 
 class GraphicalInterface(GameInterface):
+    # Helper classes for the graphical interface
     class GridDimensions:
         def __init__(self, rows: int, cols: int, window_width, window_height):
             self.margins_h = window_width // 20
@@ -83,6 +84,11 @@ class GraphicalInterface(GameInterface):
                 "empty_a": empty_a_color,
                 "empty_b": empty_b_color
             }
+
+    class Button: # a button that calls the function onClick when clicked; the label includes the coordinates of the button
+        def __init__(self, label: pyglet.text.Label, onClick: Callable):
+            self.label = label
+            self.onClick = onClick
     
     class ScreenTransition(Enum):
         START = 0 # transition from select dimensions screen to running screen
@@ -95,6 +101,8 @@ class GraphicalInterface(GameInterface):
             self.gi = gi
         
         @abstractmethod
+        # returns the screen to transition to;
+        # call self.gi.current_screen = self.transition(transition) to change the screen
         def transition(self, transition: 'GraphicalInterface.ScreenTransition') -> Union['GraphicalInterface.Screen', None]:
             pass
         @abstractmethod
@@ -113,19 +121,63 @@ class GraphicalInterface(GameInterface):
     class SelectDimensionsScreen(Screen):
         def __init__(self, gi: 'GraphicalInterface'):
             super().__init__(gi)
+            self.dimension_buttons = [] # list of Button instances
+            self.preset_dimensions = [(3,3), (7,7), (15,15), (40,40)]
+            self.selected_dimensions = None
+            # Buttons for preset dimensions
+            for i in range(len(self.preset_dimensions)):
+                num_rows, num_cols = self.preset_dimensions[i]
+                button = GraphicalInterface.Button(pyglet.text.Label(f"{num_rows} x {num_cols}",
+                    font_name='Arial', font_size=24,
+                    x=self.gi.window.width // 2, y=self.gi.window.height // 2 - (i * 50),
+                    anchor_x='center', anchor_y='center',
+                    color=(100, 100, 200)
+                ), lambda r=num_rows, c=num_cols: self.set_dimensions(r, c))
+                self.dimension_buttons.append(button)
+            # Start button
+            self.start_button = GraphicalInterface.Button(pyglet.text.Label("Start",
+                font_name='Arial', font_size=24,
+                x=self.gi.window.width // 2, y=self.gi.window.height // 2 - (len(self.preset_dimensions) * 50) - 50,
+                anchor_x='center', anchor_y='center',
+                color=(100, 200, 100)
+            ), self.start_game)
+        
+        def set_dimensions(self, num_rows: int, num_cols: int):
+            self.selected_dimensions = (num_rows, num_cols)
+            
+        # Called by the start button; will call self.transition() to enter the running screen
+        def start_game(self):
+            if self.selected_dimensions != None:
+                num_rows, num_cols = self.selected_dimensions
+                self.gi.game.process_input(Commands.INIT_GRID, num_rows, num_cols)
+            self.gi.current_screen = self.transition(GraphicalInterface.ScreenTransition.START)
         
         def transition(self, transition: 'GraphicalInterface.ScreenTransition') -> Union['GraphicalInterface.Screen', None]:
-            if transition == GraphicalInterface.ScreenTransition.RUN:
-                return GraphicalInterface.RunningScreen(self.game)
+            if transition == GraphicalInterface.ScreenTransition.START:
+                return GraphicalInterface.RunningScreen(self.gi)
         
+        # Check if the mouse is in bounds for the button
+        def button_clicked(self, b, x, y) -> bool:
+            return x >= b.label.x - b.label.content_width // 2 and x <= b.label.x + b.label.content_width // 2 and \
+                y >= b.label.y - b.label.content_height // 2 and y <= b.label.y + b.label.content_height // 2
+
         def handle_mouse_press(self, x, y, button, modifiers):
-            pass
+            # Check if any button is clicked
+            for b in self.dimension_buttons:
+                if self.button_clicked(b, x, y):
+                    b.onClick()
+            if self.button_clicked(self.start_button, x, y):
+                self.start_button.onClick()
+
         def handle_key_press(self, symbol, modifiers):
             pass
         def handle_text(self, text):
             pass
+
         def update(self):
-            pass
+            for b in self.dimension_buttons:
+                b.label.draw()
+            self.start_button.label.draw()
     
     class RunningScreen(Screen):
         def __init__(self, gi: 'GraphicalInterface'):
@@ -133,7 +185,7 @@ class GraphicalInterface(GameInterface):
         
         def transition(self, transition: 'GraphicalInterface.ScreenTransition') -> Union['GraphicalInterface.Screen', None]:
             if transition == GraphicalInterface.ScreenTransition.PAUSE:
-                return GraphicalInterface.PausedScreen(self.game)
+                return GraphicalInterface.PausedScreen(self.gi)
         
         def handle_mouse_press(self, x, y, button, modifiers):
             # coordinates of the cell clicked, with (0, 0) at the top left corner
@@ -216,7 +268,7 @@ class GraphicalInterface(GameInterface):
         self.paused_screen = GraphicalInterface.PausedScreen(self)
 
         # start on the select dimensions screen by default
-        self.current_screen = self.running_screen # TEMPORARY ONLY
+        self.current_screen = self.select_dimensions_screen
 
         @self.window.event
         def on_draw():
