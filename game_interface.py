@@ -64,18 +64,7 @@ class CommandInterface(GameInterface):
             self.game.process_input(Commands.POPULATE, int(input("number of fish: ")), int(input("number of sharks: ")))
 
 class GraphicalInterface(GameInterface):
-    # Helper classes for the graphical interface
-    class GridDimensions:
-        def __init__(self, rows: int, cols: int, window_width, window_height):
-            self.margins_h = window_width // 20
-            self.margins_v = window_height // 20
-            self.grid_width = window_width - 2 * self.margins_h # width of the grid in pixels
-            self.grid_height = window_height - 2 * self.margins_v # height of the grid in pixels
-            self.cell_width = self.grid_width / rows
-            self.cell_height = self.grid_height / cols
-            self.cell_margin_h = self.cell_width // 15
-            self.cell_margin_v = self.cell_height // 15
-    
+    # Helper classes for the graphical interface    
     class ColorScheme:
         def __init__(self, fish_color=(0, 0, 255), shark_color=(255, 0, 0), empty_a_color=(125, 255, 200), empty_b_color=(50, 200, 100)):
             self.cell_colors = {
@@ -118,7 +107,7 @@ class GraphicalInterface(GameInterface):
         def update(self):
             pass
     
-    class SelectDimensionsScreen(Screen):
+    class SelectDimensionsScreen(Screen):        
         def __init__(self, gi: 'GraphicalInterface'):
             super().__init__(gi)
             self.dimension_buttons = [] # list of Button instances
@@ -180,8 +169,20 @@ class GraphicalInterface(GameInterface):
             self.start_button.label.draw()
     
     class RunningScreen(Screen):
+        class GridDimensions:
+            def __init__(self, rows: int, cols: int, window_width, window_height):
+                self.margins_h = window_width // 20
+                self.margins_v = window_height // 20
+                self.grid_width = window_width - 2 * self.margins_h # width of the grid in pixels
+                self.grid_height = window_height - 2 * self.margins_v # height of the grid in pixels
+                self.cell_width = self.grid_width / rows
+                self.cell_height = self.grid_height / cols
+                self.cell_margin_h = self.cell_width // 15
+                self.cell_margin_v = self.cell_height // 15
+        
         def __init__(self, gi: 'GraphicalInterface'):
             super().__init__(gi)
+            self.grid_dimensions = self.GridDimensions(self.gi.game.rows, self.gi.game.cols, self.gi.window.width, self.gi.window.height)
         
         def transition(self, transition: 'GraphicalInterface.ScreenTransition') -> Union['GraphicalInterface.Screen', None]:
             if transition == GraphicalInterface.ScreenTransition.PAUSE:
@@ -189,8 +190,8 @@ class GraphicalInterface(GameInterface):
         
         def handle_mouse_press(self, x, y, button, modifiers):
             # coordinates of the cell clicked, with (0, 0) at the top left corner
-            cell_x = int((x - self.gi.grid_dimensions.margins_h) // (self.gi.grid_dimensions.grid_width / self.gi.game.rows))
-            cell_y = self.gi.game.cols - 1 - int((y - self.gi.grid_dimensions.margins_v) // (self.gi.grid_dimensions.grid_height / self.gi.game.cols))
+            cell_x = int((x - self.grid_dimensions.margins_h) // (self.grid_dimensions.grid_width / self.gi.game.rows))
+            cell_y = self.gi.game.cols - 1 - int((y - self.grid_dimensions.margins_v) // (self.grid_dimensions.grid_height / self.gi.game.cols))
             if cell_x >= 0 and cell_x < self.gi.game.rows and cell_y >= 0 and cell_y < self.gi.game.cols:
                 cell_contents = self.gi.game.process_input(Commands.GET_CELL, cell_x, cell_y)
                 if cell_contents == "FISH":
@@ -226,7 +227,7 @@ class GraphicalInterface(GameInterface):
                     else:
                         cell_col = self.gi.color_scheme.cell_colors["empty_b"]
                     # coordinates of the top-left corner of the cell; (0, 0) is at the top left corner
-                    gd = self.gi.grid_dimensions
+                    gd = self.grid_dimensions
                     x = gd.margins_h + i * gd.cell_width
                     y = gd.margins_v + (cols - 1 - j) * gd.cell_height
                     cells[i * rows + j] = pyglet.shapes.Rectangle(
@@ -257,9 +258,6 @@ class GraphicalInterface(GameInterface):
     def __init__(self, window_height: int=600, window_width: int=600, game: Game=None):
         super().__init__(game)
         self.window = pyglet.window.Window(window_width, window_height, "Wa-Tor", resizable=True)
-        
-        # set up miscellaneous data classes
-        self.grid_dimensions = self.GridDimensions(self.game.rows, self.game.cols, self.window.width, self.window.height)
         self.color_scheme = self.ColorScheme()
 
         # set up screens
@@ -289,7 +287,7 @@ class GraphicalInterface(GameInterface):
         @self.window.event
         def on_resize(width, height):
             # recalculate grid dimensions based on new window size
-            self.grid_dimensions = self.GridDimensions(self.game.rows, self.game.cols, width, height)
+            self.running_screen.grid_dimensions = self.RunningScreen.GridDimensions(self.game.rows, self.game.cols, width, height)
             self.update_display()
     
     def setup(self):
